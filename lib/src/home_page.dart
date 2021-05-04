@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+SharedPreferences prefs;
+String sharedPreferencesKey = "shopping_list";
+//List<String> _itemsToShow = <String>[];
 
 class HomePage extends StatefulWidget {
   @override
   _HomePageState createState() => _HomePageState();
+  static Future init() async {
+    prefs = await SharedPreferences.getInstance();
+  }
 }
 
 class _HomePageState extends State<HomePage> {
@@ -31,6 +39,7 @@ class _HomePageState extends State<HomePage> {
         padding: EdgeInsets.all(10.0),
         itemCount: _items.length,
         itemBuilder: (BuildContext context, int index) {
+          retrieveItems();
           return _createListItem(_items[index], index);
         });
   }
@@ -91,6 +100,7 @@ class _HomePageState extends State<HomePage> {
             if (value.isNotEmpty) {
               setState(() {
                 _items.add(value);
+                saveItem(_items);
               });
             }
           }),
@@ -101,7 +111,9 @@ class _HomePageState extends State<HomePage> {
           backgroundColor: Colors.red,
           onPressed: () {
             setState(() {
+              //_items.clear();
               _items.clear();
+              saveItem(_items);
             });
           },
         ),
@@ -112,28 +124,47 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  saveItem(List<String> item) async {
+    await HomePage.init();
+    prefs.setStringList(sharedPreferencesKey, item);
+  }
+
+  retrieveItems() async {
+    await HomePage.init();
+    _items = prefs.getStringList(sharedPreferencesKey) ?? [];
+  }
+
   Widget _createListItem(String item, int index) {
-    //Improvement: apply Dismissible class (https://www.youtube.com/watch?v=iEMgjrfuc58)
     final int indexToSubtitle = index + 1;
-    return Card(
-      elevation: 10.0,
-      child: ListTile(
-        leading: Icon(Icons.label_important_sharp),
-        title: Text(
-          item,
-          style: TextStyle(fontSize: 20.0),
-        ),
-        subtitle: Text("Item #$indexToSubtitle"),
-        trailing: IconButton(
-          icon: Icon(Icons.highlight_remove_sharp),
-          iconSize: 28.0,
-          onPressed: () {
-            setState(() {
-              _items.removeAt(index);
-            });
-          },
+    return Dismissible(
+      child: Card(
+        elevation: 10.0,
+        child: ListTile(
+          leading: Icon(Icons.label_important_sharp),
+          title: Text(
+            item,
+            style: TextStyle(fontSize: 20.0),
+          ),
+          subtitle: Text("Item #$indexToSubtitle"),
         ),
       ),
+      direction: DismissDirection.endToStart,
+      onDismissed: (direction) {
+        setState(() {
+          _items.removeAt(index);
+          saveItem(_items);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("$item deleted!"),
+          duration: Duration(seconds: 1),
+        ));
+      },
+      background: Container(
+        alignment: AlignmentDirectional.centerEnd,
+        color: Colors.red,
+        child: Icon(Icons.delete, size: 30.0),
+      ),
+      key: Key(item),
     );
   }
 }
