@@ -1,20 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-SharedPreferences prefs;
 String sharedPreferencesKey = "shopping_list";
-//List<String> _itemsToShow = <String>[];
+List<String> _testValue;
 
 class HomePage extends StatefulWidget {
   @override
   _HomePageState createState() => _HomePageState();
-  static Future init() async {
-    prefs = await SharedPreferences.getInstance();
-  }
 }
 
 class _HomePageState extends State<HomePage> {
+  SharedPreferences prefs;
   List<String> _items = <String>[];
+
+  @override
+  void initState() {
+    super.initState();
+
+    SharedPreferences.getInstance().then((SharedPreferences sp) {
+      prefs = sp;
+
+      _testValue = prefs.getStringList(sharedPreferencesKey);
+      if (_testValue == null) {
+        _testValue = <String>[];
+        persist(_testValue);
+      }
+      _items = _testValue;
+      setState(() {});
+    });
+  }
+
+  void persist(List<String> value) {
+    setState(() {
+      _testValue = value;
+    });
+    prefs.setStringList(sharedPreferencesKey, value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +60,6 @@ class _HomePageState extends State<HomePage> {
         padding: EdgeInsets.all(10.0),
         itemCount: _items.length,
         itemBuilder: (BuildContext context, int index) {
-          retrieveItems();
           return _createListItem(_items[index], index);
         });
   }
@@ -98,10 +118,8 @@ class _HomePageState extends State<HomePage> {
           backgroundColor: Colors.green,
           onPressed: () => _showInputModal(context).then((value) {
             if (value.isNotEmpty) {
-              setState(() {
-                _items.add(value);
-                saveItem(_items);
-              });
+              _items.add(value);
+              persist(_items);
             }
           }),
         ),
@@ -110,11 +128,9 @@ class _HomePageState extends State<HomePage> {
           child: Icon(Icons.remove_shopping_cart),
           backgroundColor: Colors.red,
           onPressed: () {
-            setState(() {
-              //_items.clear();
-              _items.clear();
-              saveItem(_items);
-            });
+            //_items.clear();
+            _items.clear();
+            persist(_items);
           },
         ),
         SizedBox(
@@ -122,16 +138,6 @@ class _HomePageState extends State<HomePage> {
         )
       ],
     );
-  }
-
-  saveItem(List<String> item) async {
-    await HomePage.init();
-    prefs.setStringList(sharedPreferencesKey, item);
-  }
-
-  retrieveItems() async {
-    await HomePage.init();
-    _items = prefs.getStringList(sharedPreferencesKey) ?? [];
   }
 
   Widget _createListItem(String item, int index) {
@@ -150,10 +156,8 @@ class _HomePageState extends State<HomePage> {
       ),
       direction: DismissDirection.endToStart,
       onDismissed: (direction) {
-        setState(() {
-          _items.removeAt(index);
-          saveItem(_items);
-        });
+        _items.removeAt(index);
+        persist(_items);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text("$item deleted!"),
           duration: Duration(seconds: 1),
